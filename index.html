@@ -237,8 +237,8 @@
                     <h2 className="text-2xl font-bold text-center">Бронювання</h2>
                     <input className="w-full border p-2 rounded text-center" placeholder="Відповідальний" value={form.responsible} onChange={e=>setForm({...form, responsible: e.target.value})} />
                     <div className="flex gap-2">
-                        <DatePickerField label="Дата виїзду" value={form.start} onChange={e=>setForm({...form, start: e.target.value})} />
-                        <DatePickerField label="Дата повернення" value={form.end} onChange={e=>setForm({...form, end: e.target.value})} />
+                        <DatePickerField label="Виїзд" value={form.start} onChange={e=>setForm({...form, start: e.target.value})} />
+                        <DatePickerField label="Повернення" value={form.end} onChange={e=>setForm({...form, end: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                         <div className="flex items-center gap-2"><img src={BUSES[0].imageUrl} className="w-16" /><input className="flex-1 border p-2 rounded" value={form.s} onFocus={()=>handleFocus('s')} onBlur={()=>handleBlur('s')} onChange={e=>setForm({...form, s: e.target.value})} /></div>
