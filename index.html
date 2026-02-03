@@ -351,13 +351,34 @@
         root.render(<App />);
 
         if ('serviceWorker' in navigator) {
-            // Unregister old workers to force update if any
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    // Optional: registration.unregister();
-                }
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js').then(reg => {
+                    // Check for updates on every page load
+                    reg.update();
+                    
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // New content is available, skipWaiting will be called in SW
+                                    // and controllerchange event will trigger the reload
+                                    console.log('New content available, updating...');
+                                }
+                            }
+                        };
+                    };
+                }).catch(err => {
+                    console.error('SW registration failed:', err);
+                });
             });
-            navigator.serviceWorker.register('service-worker.js');
+
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+                window.location.reload();
+            });
         }
     </script>
 </body>
