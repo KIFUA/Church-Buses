@@ -6,10 +6,8 @@
     <title>Табло використання бусів</title>
     
     <!-- Налаштування для Андроїд додатку -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Church Bus">
+    <!-- PWA вимкнено -->
+    <!-- <link rel="manifest" href="manifest.json"> -->
     <meta name="theme-color" content="#1f2937">
 
     <!-- Бібліотеки (React та стилі) -->
@@ -351,33 +349,10 @@
         root.render(<App />);
 
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js').then(reg => {
-                    // Check for updates on every page load
-                    reg.update();
-                    
-                    reg.onupdatefound = () => {
-                        const installingWorker = reg.installing;
-                        installingWorker.onstatechange = () => {
-                            if (installingWorker.state === 'installed') {
-                                if (navigator.serviceWorker.controller) {
-                                    // New content is available, skipWaiting will be called in SW
-                                    // and controllerchange event will trigger the reload
-                                    console.log('New content available, updating...');
-                                }
-                            }
-                        };
-                    };
-                }).catch(err => {
-                    console.error('SW registration failed:', err);
-                });
-            });
-
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (refreshing) return;
-                refreshing = true;
-                window.location.reload();
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
             });
         }
     </script>
