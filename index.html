@@ -21,11 +21,38 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .datepicker-dropdown { position: absolute; z-index: 100; background: white; border: 1px solid #d1d5db; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 280px; margin-top: 4px; }
-        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #2563eb; animation: spin 1s linear infinite; }
+        
+        input::placeholder, textarea::placeholder { color: #9ca3af !important; }
+
+        .datepicker-dropdown {
+            position: absolute;
+            z-index: 100;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 280px;
+            margin-top: 4px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #2563eb;
+            animation: spin 1s linear infinite;
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -33,11 +60,11 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- НАЛАШТУВАННЯ ---
+        // --- КОНФІГУРАЦІЯ ---
         const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQxyzpvfY52YXP2aqyMgI0ku7NuuwLMtQjaJ_Kg_NUX-gzQActOWXliWsHCLXqeEp8GCr3UTo3qC6cF/pub?gid=747631810&single=true&output=csv';
         
-        // КРОК 2: ВСТАВТЕ ВАШЕ ПОСИЛАННЯ (З ГУГЛ ТАБЛИЦІ) МІЖ ЛАПКАМИ НИЖЧЕ:
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyauGdabXltyOf7YJeZLI9y7IK3BIGTZRjPSUvALXMm-_-PFplgH-FXIJ2WzYQ2xcVC/exec;
+        // ВСТАВТЕ ВАШЕ НОВЕ ПОСИЛАННЯ НИЖЧЕ (замість тексту в лапках)
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyauGdabXltyOf7YJeZLI9y7IK3BIGTZRjPSUvALXMm-_-PFplgH-FXIJ2WzYQ2xcVC/exec';
 
         const BUSES = [
             { code: 'S', name: 'СПРИНТЕР', description: '(16 місць + водій категорії D)', imageUrl: 'https://i.postimg.cc/fR86KGt6/image.png' },
@@ -45,7 +72,7 @@
             { code: 'D', name: 'ДЕЛЬФІН', description: '(8 місць + водій категорії В)', imageUrl: 'https://i.postimg.cc/jj9BVyhc/image.png' }
         ];
 
-        const MONTH_NAMES = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Люпень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
+        const MONTH_NAMES = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
         const WEEK_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
 
         const formatDateForDisplay = (date) => {
@@ -75,7 +102,10 @@
                     departureDate: v[4]?.trim() || '',
                     returnDate: v[6]?.trim() || '',
                     purpose: v[7]?.trim() || '',
-                    destination: v[8]?.trim() || ''
+                    destination: v[8]?.trim() || '',
+                    driverS: v[9]?.trim() || '',
+                    driverK: v[10]?.trim() || '',
+                    driverD: v[11]?.trim() || ''
                 };
                 return null;
             }).filter(Boolean);
@@ -100,14 +130,18 @@
             const containerRef = React.useRef(null);
 
             React.useEffect(() => {
-                const handleClickOutside = (e) => { if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false); };
+                const handleClickOutside = (e) => {
+                    if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
+                };
                 document.addEventListener("mousedown", handleClickOutside);
                 return () => document.removeEventListener("mousedown", handleClickOutside);
             }, []);
 
             const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
             const startDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay() || 7;
-            const days = Array.from({ length: startDay - 1 }).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+            const days = Array.from({ length: startDay - 1 }).fill(null).concat(
+                Array.from({ length: daysInMonth }, (_, i) => i + 1)
+            );
 
             const selectDate = (day) => {
                 const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
@@ -115,24 +149,86 @@
                 setIsOpen(false);
             };
 
+            const changeMonth = (offset) => {
+                setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + offset, 1));
+            };
+
             return (
                 <div className="relative w-full" ref={containerRef}>
                     <label className="text-[11px] font-semibold text-gray-600 uppercase mb-1 block">{label}</label>
-                    <div onClick={() => setIsOpen(!isOpen)} className="w-full bg-white border-2 border-gray-500 p-2 rounded cursor-pointer flex justify-between items-center">
-                        <span className={value ? 'text-gray-900 font-medium' : 'text-gray-400'}>{value ? formatDateForDisplay(value) : 'дд.мм.рррр'}</span>
-                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="2" /></svg>
+                    <div 
+                        onClick={() => setIsOpen(!isOpen)}
+                        className="w-full bg-white border-2 border-gray-500 p-2 rounded cursor-pointer flex justify-between items-center transition-all hover:border-blue-400"
+                    >
+                        <span className={value ? 'text-gray-900 font-medium' : 'text-gray-400'}>
+                            {value ? formatDateForDisplay(value) : 'дд.мм.рррр'}
+                        </span>
+                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
                     </div>
                     {isOpen && (
                         <div className="datepicker-dropdown p-3 animate-fade-in">
                             <div className="flex justify-between items-center mb-3">
-                                <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="p-1">←</button>
-                                <span className="font-bold">{MONTH_NAMES[viewDate.getMonth()]} {viewDate.getFullYear()}</span>
-                                <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} className="p-1">→</button>
+                                <button onClick={() => changeMonth(-1)} className="text-gray-600 font-bold p-2 hover:bg-gray-100 rounded-lg">←</button>
+                                <span className="font-bold text-gray-800">{MONTH_NAMES[viewDate.getMonth()]} {viewDate.getFullYear()}</span>
+                                <button onClick={() => changeMonth(1)} className="text-gray-600 font-bold p-2 hover:bg-gray-100 rounded-lg">→</button>
                             </div>
-                            <div className="grid grid-cols-7 gap-1 text-center text-[10px] mb-2">{WEEK_DAYS.map(d => <div key={d} className="font-bold">{d}</div>)}</div>
-                            <div className="grid grid-cols-7 gap-1">{days.map((day, i) => <div key={i} onClick={() => day && selectDate(day)} className={`h-8 flex items-center justify-center rounded-full text-xs cursor-pointer ${day ? 'hover:bg-gray-100' : ''} ${value && day && new Date(value).getDate() === day && new Date(value).getMonth() === viewDate.getMonth() ? 'bg-blue-600 text-white' : ''}`}>{day || ''}</div>)}</div>
+                            <div className="grid grid-cols-7 gap-1 text-center text-[11px] mb-2">
+                                {WEEK_DAYS.map((d, i) => (
+                                    <div key={d} className={`font-bold ${i === 5 ? 'text-blue-500' : i === 6 ? 'text-red-500' : 'text-gray-400'}`}>{d}</div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-7 gap-1 text-center">
+                                {days.map((day, i) => {
+                                    const isWeekend = (i % 7 === 5 || i % 7 === 6);
+                                    const isSunday = (i % 7 === 6);
+                                    const isSaturday = (i % 7 === 5);
+                                    const isSelected = value && day && new Date(value).getDate() === day && new Date(value).getMonth() === viewDate.getMonth() && new Date(value).getFullYear() === viewDate.getFullYear();
+                                    return (
+                                        <div 
+                                            key={i}
+                                            onClick={() => day && selectDate(day)}
+                                            className={`h-8 flex items-center justify-center rounded-full text-xs font-bold cursor-pointer transition-all
+                                                ${!day ? '' : isSelected ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-100'}
+                                                ${day && !isSelected && isSaturday ? 'text-blue-500' : ''}
+                                                ${day && !isSelected && isSunday ? 'text-red-500' : ''}
+                                                ${day && !isSelected && !isWeekend ? 'text-gray-800' : ''}
+                                            `}
+                                        >
+                                            {day || ''}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
+                </div>
+            );
+        };
+
+        const BusCard = ({ bus, isActive, onClick, isMobileFloating, isDesktopTop }) => {
+            const mobileImgClass = "w-[94px] h-[50px] object-contain";
+            if (isMobileFloating) {
+                return (
+                    <div onClick={onClick} className={`cursor-pointer transition-all duration-300 p-1 rounded-lg border-2 mb-2 ${isActive ? 'bg-white/95 shadow-lg scale-105 border-blue-600' : 'bg-white/80 border-transparent'}`}>
+                        <img src={bus.imageUrl} alt={bus.name} className={mobileImgClass} />
+                    </div>
+                );
+            }
+            if (isDesktopTop) {
+                 return (
+                    <div onClick={onClick} className={`cursor-pointer transition-all rounded-lg p-2 flex flex-col items-center min-w-[100px] ${isActive ? 'bg-white border-b-4 border-blue-600 shadow-sm' : 'hover:bg-gray-200'}`}>
+                        <img src={bus.imageUrl} alt={bus.name} className="w-[80px] h-[40px] object-contain" />
+                        <span className={`text-[10px] font-bold ${isActive ? 'text-blue-700' : 'text-gray-600'}`}>{bus.name}</span>
+                    </div>
+                );
+            }
+            return (
+                <div onClick={onClick} className="cursor-pointer transition-all bg-gray-100 rounded-lg p-4 flex flex-col items-center min-w-[150px] hover:shadow-lg border-2 border-transparent hover:border-blue-200">
+                    <img src={bus.imageUrl} alt={bus.name} className="w-[120px] h-[60px] object-contain mb-2" />
+                    <span className="font-bold text-gray-800">{bus.name}</span>
+                    <span className="text-xs text-gray-500">{bus.description}</span>
                 </div>
             );
         };
@@ -140,20 +236,41 @@
         const Calendar = ({ month, year, trips, busCode, onDayClick, onMonthChange, showControls }) => {
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const startDay = new Date(year, month, 1).getDay() || 7;
-            const days = Array.from({ length: startDay - 1 }).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+            const days = Array.from({ length: startDay - 1 }).fill(null).concat(
+                Array.from({ length: daysInMonth }, (_, i) => i + 1)
+            );
             return (
                 <div className="bg-gray-100 rounded-lg shadow-md p-2 w-full max-w-[300px]">
                     <div className="flex justify-between items-center mb-2">
-                        {showControls ? <button onClick={() => onMonthChange(-1)} className="font-bold px-2">&lt;</button> : <div className="w-6"></div>}
-                        <h3 className="font-bold text-red-500 text-sm uppercase">{MONTH_NAMES[month]}</h3>
-                        {showControls ? <button onClick={() => onMonthChange(1)} className="font-bold px-2">&gt;</button> : <div className="w-6"></div>}
+                        {showControls ? (
+                            <button onClick={() => onMonthChange(-1)} className="font-bold px-3 py-1 text-gray-800 hover:bg-gray-200 rounded">&lt;</button>
+                        ) : <div className="w-10"></div>}
+                        <h3 className="font-bold text-red-500 text-lg uppercase">{MONTH_NAMES[month]}</h3>
+                        {showControls ? (
+                            <button onClick={() => onMonthChange(1)} className="font-bold px-3 py-1 text-gray-800 hover:bg-gray-200 rounded">&gt;</button>
+                        ) : <div className="w-10"></div>}
                     </div>
-                    <div className="grid grid-cols-7 gap-[1px] text-center text-[10px]">
-                        {WEEK_DAYS.map(d => <div key={d} className="font-bold pb-1 text-gray-600">{d}</div>)}
+                    <div className="grid grid-cols-7 gap-[0.5px] text-center text-[11px]">
+                        {WEEK_DAYS.map((d, i) => <div key={d} className={`font-bold pb-1 ${i === 5 ? 'text-blue-500' : i === 6 ? 'text-red-500' : 'text-gray-600'}`}>{d}</div>)}
                         {days.map((day, i) => {
                             const d = day ? new Date(year, month, day) : null;
                             const trip = d && trips.find(t => t.bus.includes(busCode) && isDateInRange(d, parseDate(t.departureDate), parseDate(t.returnDate)));
-                            return <div key={i} onClick={() => trip && onDayClick(trip)} className={`h-7 flex items-center justify-center rounded font-bold text-[11px] ${!day ? '' : trip ? 'bg-red-500 text-white cursor-pointer' : 'text-gray-800'}`}>{day || ''}</div>;
+                            const isToday = d && d.toDateString() === new Date().toDateString();
+                            let textColor = 'text-gray-800';
+                            if (day && !trip) {
+                                if (i % 7 === 5) textColor = 'text-blue-500';
+                                else if (i % 7 === 6) textColor = 'text-red-500';
+                            } else if (trip) {
+                                textColor = 'text-white';
+                            }
+                            return (
+                                <div key={i} 
+                                    onClick={() => trip && onDayClick(trip)}
+                                    className={`h-7 flex items-center justify-center rounded font-bold text-[12px] ${!day ? '' : trip ? `bg-red-500 cursor-pointer ${textColor}` : textColor} ${isToday && !trip ? 'ring-2 ring-blue-500' : ''}`}
+                                >
+                                    {day || ''}
+                                </div>
+                            );
                         })}
                     </div>
                 </div>
@@ -162,86 +279,212 @@
 
         const BookingForm = ({ busCode, onBack, onSuccess }) => {
             const [form, setForm] = React.useState({ responsible: '', start: '', end: '', purpose: '', s: 'Не замовляємо', k: 'Не замовляємо', d: 'Не замовляємо' });
-            const [status, setStatus] = React.useState('IDLE');
+            const [status, setStatus] = React.useState('IDLE'); // IDLE, SENDING, WAITING_FOR_ADMIN, ACCEPTED, REJECTED
             const [requestId, setRequestId] = React.useState(null);
+            
+            const handleFocus = (f) => form[f] === 'Не замовляємо' && setForm({...form, [f]: ''});
+            const handleBlur = (f) => form[f] === '' && setForm({...form, [f]: 'Не замовляємо'});
+            
+            const inputBaseClass = "w-full bg-white border-2 border-gray-500 p-2 rounded focus:outline-none focus:border-blue-600 transition-colors";
+            const labelClass = "text-[11px] font-semibold text-gray-600 uppercase mb-1 block";
 
+            const handlePurposeChange = (e) => {
+                const target = e.target;
+                setForm({...form, purpose: target.value});
+                target.style.height = 'auto';
+                target.style.height = target.scrollHeight + 'px';
+            };
+
+            // Перевірка статусу кожні 5 секунд
             React.useEffect(() => {
                 let interval;
-                if (status === 'WAITING' && requestId) {
+                if (status === 'WAITING_FOR_ADMIN' && requestId) {
                     interval = setInterval(async () => {
-                        const res = await fetch(`${APPS_SCRIPT_URL}?action=checkStatus&id=${requestId}`).then(r => r.json());
-                        if (res.status === 'ACCEPTED') { setStatus('ACCEPTED'); clearInterval(interval); }
-                        else if (res.status === 'REJECTED') { setStatus('REJECTED'); clearInterval(interval); }
+                        try {
+                            const res = await fetch(`${APPS_SCRIPT_URL}?action=checkStatus&id=${requestId}`).then(r => r.json());
+                            if (res.status === 'ACCEPTED') {
+                                setStatus('ACCEPTED');
+                                clearInterval(interval);
+                            } else if (res.status === 'REJECTED') {
+                                setStatus('REJECTED');
+                                clearInterval(interval);
+                            }
+                        } catch (e) {
+                            console.error("Status check error", e);
+                        }
                     }, 5000);
                 }
                 return () => clearInterval(interval);
             }, [status, requestId]);
 
             const submit = async () => {
-                if (!form.responsible || !form.start || !form.end || !form.purpose) return alert('Заповніть всі поля!');
+                if (!form.responsible || !form.start || !form.end || !form.purpose) return alert('Заповніть всі поля (включаючи мету поїздки)!');
                 setStatus('SENDING');
-                const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ bus: BUSES.find(b=>b.code===busCode)?.name, responsiblePerson: form.responsible, departureDate: formatDateForDisplay(form.start), returnDate: formatDateForDisplay(form.end), purpose: form.purpose, sprinter: form.s, crafter: form.k, delphin: form.d }) }).then(r => r.json());
-                if (res.status === 'success') { setRequestId(res.requestId); setStatus('WAITING'); } else { alert('Помилка'); setStatus('IDLE'); }
+                try {
+                    const res = await fetch(APPS_SCRIPT_URL, {
+                        method: 'POST', body: JSON.stringify({
+                            bus: BUSES.find(b=>b.code===busCode)?.name, 
+                            responsiblePerson: form.responsible,
+                            departureDate: formatDateForDisplay(form.start), 
+                            returnDate: formatDateForDisplay(form.end), 
+                            purpose: form.purpose,
+                            sprinter: form.s, 
+                            crafter: form.k, 
+                            delphin: form.d, 
+                            userEmail: "app@user"
+                        })
+                    }).then(r => r.json());
+                    
+                    if (res.status === 'success') { 
+                        setRequestId(res.requestId);
+                        setStatus('WAITING_FOR_ADMIN'); 
+                    } else { 
+                        alert('Помилка сервера'); 
+                        setStatus('IDLE'); 
+                    }
+                } catch { 
+                    alert('Помилка мережі'); 
+                    setStatus('IDLE'); 
+                }
             };
 
-            if (status === 'WAITING') return <div className="text-center p-10"><div className="spinner mx-auto mb-4"></div><h2 className="text-xl font-bold">Чекайте підтвердження адміністратора...</h2><p className="text-sm text-gray-500 mt-2">ID: {requestId}</p></div>;
-            if (status === 'ACCEPTED') return <div className="text-center p-10 text-green-600"><h2 className="text-2xl font-bold">✓ ЗАМОВЛЕННЯ ПРИЙНЯТО!</h2><button onClick={onSuccess} className="mt-5 bg-blue-600 text-white px-6 py-2 rounded">На головну</button></div>;
-            if (status === 'REJECTED') return <div className="text-center p-10 text-red-600"><h2 className="text-2xl font-bold">✕ ВІДХИЛЕНО</h2><button onClick={() => setStatus('IDLE')} className="mt-5 bg-gray-800 text-white px-6 py-2 rounded">Спробувати ще раз</button></div>;
+            if (status === 'WAITING_FOR_ADMIN') {
+                return (
+                    <div className="bg-white p-8 rounded-xl shadow-xl max-w-md mx-auto text-center space-y-6 animate-fade-in border-t-4 border-blue-500">
+                        <div className="flex justify-center"><div className="spinner"></div></div>
+                        <h2 className="text-2xl font-bold text-gray-800">Чекайте підтвердження</h2>
+                        <p className="text-gray-600">Ваш запит надіслано адміністратору. Як тільки він прийме рішення, ви побачите повідомлення тут.</p>
+                        <p className="text-[10px] text-gray-400">ID запиту: {requestId}</p>
+                    </div>
+                );
+            }
+
+            if (status === 'ACCEPTED') {
+                return (
+                    <div className="bg-white p-8 rounded-xl shadow-xl max-w-md mx-auto text-center space-y-6 animate-fade-in border-t-4 border-green-500">
+                        <div className="text-green-500 text-6xl">✓</div>
+                        <h2 className="text-2xl font-bold text-green-700">Замовлення прийнято!</h2>
+                        <p className="text-gray-700">Ваше замовлення прийнято, можете переходити до заповнення форми бронювання.</p>
+                        <a href={GOOGLE_SHEET_URL.replace('output=csv', '')} target="_blank" className="inline-block bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-md hover:bg-green-700 transition-all">Відкрити форму</a>
+                        <button onClick={onSuccess} className="block w-full text-blue-600 font-bold mt-4">На головну</button>
+                    </div>
+                );
+            }
+
+            if (status === 'REJECTED') {
+                return (
+                    <div className="bg-white p-8 rounded-xl shadow-xl max-w-md mx-auto text-center space-y-6 animate-fade-in border-t-4 border-red-500">
+                        <div className="text-red-500 text-6xl">✕</div>
+                        <h2 className="text-2xl font-bold text-red-700">Відхилено</h2>
+                        <p className="text-gray-700">Ваше замовлення відхилене. Зв'яжіться з адміністратором церкви для отримання детальної інформації.</p>
+                        <button onClick={() => setStatus('IDLE')} className="bg-gray-800 text-white px-8 py-3 rounded-lg font-bold w-full">Спробувати ще раз</button>
+                    </div>
+                );
+            }
 
             return (
-                <div className="max-w-md mx-auto space-y-4 p-4 bg-white rounded-lg shadow">
-                    <h2 className="text-xl font-bold text-center">БРОНЮВАННЯ</h2>
-                    <input className="w-full border-2 border-gray-500 p-2 rounded" placeholder="Відповідальний" value={form.responsible} onChange={e=>setForm({...form, responsible: e.target.value})} />
-                    <div className="flex gap-2"><CustomDatePicker label="Виїзд" value={form.start} onChange={v=>setForm({...form, start: v})} /><CustomDatePicker label="Повернення" value={form.end} onChange={v=>setForm({...form, end: v})} /></div>
-                    <textarea className="w-full border-2 border-gray-500 p-2 rounded" placeholder="Мета поїздки" value={form.purpose} onChange={e=>setForm({...form, purpose: e.target.value})} rows="2" />
-                    <div className="text-center pt-2"><button onClick={submit} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">ЗАМОВИТИ</button><button onClick={onBack} className="mt-2 text-gray-500 text-sm">Скасувати</button></div>
+                <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto space-y-5 animate-fade-in">
+                    <header className="border-b pb-4 mb-2"><h2 className="text-2xl font-bold text-center text-gray-800">БРОНЮВАННЯ</h2></header>
+                    <input className={`${inputBaseClass} text-center font-bold text-gray-900`} placeholder="Впишіть відповідального за поїздку" value={form.responsible} onChange={e=>setForm({...form, responsible: e.target.value})} />
+                    <div className="flex gap-4">
+                        <CustomDatePicker label="Виїзд" value={form.start} onChange={v => setForm({...form, start: v})} />
+                        <CustomDatePicker label="Повернення" value={form.end} onChange={v => setForm({...form, end: v})} />
+                    </div>
+                    
+                    <div className="w-full">
+                        <label className={labelClass}>Мета поїздки</label>
+                        <textarea 
+                            className={`${inputBaseClass} min-h-[50px] resize-none overflow-hidden font-medium text-gray-900`} 
+                            placeholder="Напишіть мету поїздки..." 
+                            value={form.purpose}
+                            maxLength="255"
+                            onChange={handlePurposeChange}
+                            rows="1"
+                        />
+                        <div className="text-[9px] text-right text-gray-400 mt-1">{form.purpose.length}/255</div>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                        <label className={`${labelClass} text-center !text-[12px] border-t pt-3`}>Вкажіть прізвище та ім'я водія вибраних бусів</label>
+                        {BUSES.map((b, i) => {
+                            const f = ['s','k','d'][i];
+                            const isDefault = form[f] === 'Не замовляємо';
+                            return (
+                                <div key={b.code} className="flex items-center gap-3">
+                                    <img src={b.imageUrl} className="w-16 h-8 object-contain" alt={b.name} />
+                                    <input className={`${inputBaseClass} font-medium ${isDefault ? 'text-gray-400' : 'text-gray-900'}`} value={form[f]} onFocus={()=>handleFocus(f)} onBlur={()=>handleBlur(f)} onChange={e=>setForm({...form, [f]: e.target.value})} />
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <button onClick={onBack} className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-bold">Назад</button>
+                        <button onClick={submit} disabled={status==='SENDING'} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold shadow-lg disabled:opacity-50">{status === 'SENDING' ? 'Надсилання...' : 'Замовити'}</button>
+                    </div>
                 </div>
             );
         };
 
         const App = () => {
             const [trips, setTrips] = React.useState([]);
+            const [loading, setLoading] = React.useState(true);
             const [bus, setBus] = React.useState(null);
             const [date, setDate] = React.useState(new Date());
             const [view, setView] = React.useState('HOME');
             const [modal, setModal] = React.useState(null);
-            const load = () => fetch(`${GOOGLE_SHEET_URL}&_t=${Date.now()}`).then(r=>r.text()).then(t=>setTrips(parseTripsData(t)));
-            React.useEffect(() => { load(); }, []);
-            const next = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-
+            const loadData = () => {
+                setLoading(true);
+                fetch(`${GOOGLE_SHEET_URL}&_t=${Date.now()}`).then(r=>r.text()).then(t => { setTrips(parseTripsData(t)); setLoading(false); }).catch(() => setLoading(false));
+            };
+            React.useEffect(() => { loadData(); }, []);
+            const nextDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+            if (loading && !trips.length) return <div className="h-screen flex items-center justify-center text-white bg-gray-800">Завантаження...</div>;
             return (
-                <div className="min-h-screen pb-16">
-                    <div className="bg-gray-800 text-white p-4 text-center font-bold uppercase tracking-widest">Використання Бусів</div>
-                    <main className="p-4 max-w-4xl mx-auto">
-                        {view === 'HOME' && !bus && (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-10">{BUSES.map(b => <div key={b.code} onClick={()=>setBus(b.code)} className="bg-white p-6 rounded-xl shadow text-center cursor-pointer hover:scale-105 transition-transform"><img src={b.imageUrl} className="h-16 mx-auto mb-2 object-contain" /><h3 className="font-bold">{b.name}</h3></div>)}</div>
-                        )}
-                        {view === 'HOME' && bus && (
-                            <div className="animate-fade-in">
-                                <button onClick={()=>setBus(null)} className="mb-4 text-blue-600 font-bold">← Назад до вибору</button>
-                                <h2 className="text-2xl font-bold text-center mb-6">{BUSES.find(b=>b.code===bus)?.name}</h2>
-                                <div className="flex flex-wrap justify-center gap-6">
-                                    <Calendar month={date.getMonth()} year={date.getFullYear()} trips={trips} busCode={bus} onDayClick={setModal} onMonthChange={d=>setDate(new Date(date.getFullYear(), date.getMonth()+d, 1))} showControls />
-                                    <Calendar month={next.getMonth()} year={next.getFullYear()} trips={trips} busCode={bus} onDayClick={setModal} />
+                <div className="min-h-screen relative pb-16">
+                    <div className="text-center py-3 bg-white border-b"><span className="text-xs font-bold text-gray-700 uppercase tracking-wider">УЦХВЄ М. ІВАНО-ФРАНКІВСЬК</span></div>
+                    <div className={`max-w-4xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden mt-4 ${bus ? 'min-h-[80vh]' : ''}`}>
+                        <header className="bg-gray-800 p-5 text-center text-white"><h1 className="text-lg font-bold uppercase tracking-wide">ВИКОРИСТАННЯ ЦЕРКОВНИХ БУСІВ</h1></header>
+                        <main className="p-4 relative">
+                            {view === 'HOME' && !bus && (
+                                <div className="flex flex-col items-center gap-6 py-10 animate-fade-in">
+                                    <h2 className="font-bold text-gray-800 text-lg">Оберіть бус для перегляду:</h2>
+                                    <div className="flex flex-wrap justify-center gap-4 px-4">{BUSES.map(b => <BusCard key={b.code} bus={b} onClick={() => setBus(b.code)} />)}</div>
                                 </div>
-                                <div className="text-center mt-8"><button onClick={()=>setView('BOOKING')} className="bg-green-600 text-white font-bold py-3 px-10 rounded-xl shadow-lg">ЗАБРОНЮВАТИ</button></div>
-                            </div>
-                        )}
-                        {view === 'BOOKING' && <BookingForm busCode={bus} onBack={()=>setView('HOME')} onSuccess={()=>{setView('HOME'); load();}} />}
-                    </main>
+                            )}
+                            {view === 'HOME' && bus && (
+                                <>
+                                    <div className="md:hidden fixed left-2 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2">{BUSES.map(b => <BusCard key={b.code} bus={b} isActive={bus === b.code} onClick={() => setBus(b.code)} isMobileFloating />)}</div>
+                                    <div className="animate-fade-in">
+                                        <div className="hidden md:flex justify-center gap-6 mb-6 border-b pb-4">{BUSES.map(b => <BusCard key={b.code} bus={b} isActive={bus === b.code} onClick={() => setBus(b.code)} isDesktopTop />)}</div>
+                                        <div className="md:hidden mb-4 flex items-center gap-3 pl-[105px]"><button onClick={() => setBus(null)} className="text-sm bg-gray-200 px-4 py-1.5 rounded-full font-bold">← Вибір</button><span className="font-bold text-gray-700 border-l pl-3">{BUSES.find(b=>b.code===bus)?.name}</span></div>
+                                        <div className="pl-[105px] md:pl-0">
+                                            <div className="flex flex-wrap justify-center gap-8">
+                                                <Calendar month={date.getMonth()} year={date.getFullYear()} trips={trips} busCode={bus} onDayClick={setModal} onMonthChange={d=>setDate(new Date(date.getFullYear(), date.getMonth()+d, 1))} showControls />
+                                                <Calendar month={nextDate.getMonth()} year={nextDate.getFullYear()} trips={trips} busCode={bus} onDayClick={setModal} />
+                                            </div>
+                                            <div className="text-center mt-10"><button onClick={() => setView('BOOKING')} className="bg-green-600 text-white font-bold py-4 px-12 rounded-xl shadow-lg hover:bg-green-700 transition-all active:scale-95">Забронювати</button></div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                            {view === 'BOOKING' && <BookingForm busCode={bus} onBack={() => setView('HOME')} onSuccess={() => {setView('HOME'); loadData();}} />}
+                        </main>
+                    </div>
                     {modal && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={()=>setModal(null)}>
-                            <div className="bg-white p-6 rounded-xl w-full max-w-sm" onClick={e=>e.stopPropagation()}>
-                                <h3 className="font-bold border-b pb-2 mb-4">Деталі поїздки</h3>
-                                <div className="space-y-2 text-sm">
-                                    <p><strong>Відповідальний:</strong> {modal.responsible}</p>
-                                    <p><strong>Мета:</strong> {modal.purpose}</p>
-                                    <div className="bg-blue-50 p-3 rounded mt-2 font-bold text-center">{modal.departureDate} — {modal.returnDate}</div>
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setModal(null)}>
+                            <div className="bg-white p-6 rounded-xl w-full max-sm text-gray-900 animate-fade-in shadow-2xl" onClick={e => e.stopPropagation()}>
+                                <h3 className="font-bold text-xl mb-5 text-center border-b pb-3">Деталі поїздки</h3>
+                                <div className="space-y-4 text-sm">
+                                    <p><strong className="block text-gray-500 text-[10px] uppercase font-bold mb-0.5">Куди:</strong> {modal.destination}</p>
+                                    <p><strong className="block text-gray-500 text-[10px] uppercase font-bold mb-0.5">Мета:</strong> {modal.purpose}</p>
+                                    <p><strong className="block text-gray-500 text-[10px] uppercase font-bold mb-0.5">Відповідальний:</strong> {modal.responsible}</p>
+                                    <div className="bg-blue-50 p-3 rounded-lg text-center font-bold text-blue-800 border border-blue-100 mt-4">{modal.departureDate} — {modal.returnDate}</div>
                                 </div>
-                                <button onClick={()=>setModal(null)} className="w-full bg-gray-200 py-2 rounded mt-6 font-bold">Закрити</button>
+                                <button onClick={() => setModal(null)} className="mt-8 w-full bg-gray-100 py-3 rounded-lg font-bold text-gray-700 hover:bg-gray-200">Закрити</button>
                             </div>
                         </div>
                     )}
+                    <div className="fixed bottom-0 left-0 right-0 bg-black/80 text-white text-[10px] p-2 flex justify-between items-center z-40 backdrop-blur-sm"><span>Поїздок: {trips.length}</span><button onClick={loadData} className="bg-blue-600 px-3 py-1 rounded font-bold">ОНОВИТИ</button></div>
                 </div>
             );
         };
