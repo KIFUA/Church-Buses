@@ -400,7 +400,7 @@ def main():
             },
             "failed_tests": tester.failed_tests,
             "category_results": tester.test_results
-        }, indent=2, ensure_ascii=False)
+        }, f, indent=2, ensure_ascii=False)
     
     print(f"\n📁 Detailed results saved to: {results_file}")
     return 0 if success else 1
