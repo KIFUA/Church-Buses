@@ -637,6 +637,280 @@ async def get_public_church_info():
         "stats": stats
     }
 
+# ============== PHOTO UPLOAD ==============
+
+@api_router.post("/members/{member_id}/photo")
+async def upload_member_photo(
+    member_id: int,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_editor)
+):
+    # Check if member exists
+    member = await db.members.find_one({"original_id": member_id})
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    
+    # Validate file type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    # Generate unique filename
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    filename = f"member_{member_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = UPLOADS_DIR / filename
+    
+    # Save file
+    async with aiofiles.open(filepath, 'wb') as f:
+        content = await file.read()
+        await f.write(content)
+    
+    # Update member with photo URL
+    photo_url = f"/uploads/{filename}"
+    await db.members.update_one(
+        {"original_id": member_id},
+        {"$set": {"photo_url": photo_url}}
+    )
+    
+    return {"photo_url": photo_url}
+
+@api_router.delete("/members/{member_id}/photo")
+async def delete_member_photo(member_id: int, user: dict = Depends(require_editor)):
+    member = await db.members.find_one({"original_id": member_id})
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    
+    # Delete file if exists
+    photo_url = member.get("photo_url")
+    if photo_url:
+        filename = photo_url.split("/")[-1]
+        filepath = UPLOADS_DIR / filename
+        if filepath.exists():
+            filepath.unlink()
+    
+    # Remove photo URL from member
+    await db.members.update_one(
+        {"original_id": member_id},
+        {"$unset": {"photo_url": ""}}
+    )
+    
+    return {"message": "Photo deleted"}
+
+# ============== EVENTS & CALENDAR ==============
+
+@api_router.get("/events")
+async def get_events(
+    month: int = Query(None, ge=1, le=12),
+    year: int = Query(None),
+    user: dict = Depends(get_current_user)
+):
+    query = {}
+    
+    if month and year:
+        # Filter by month/year
+        start_date = f"{year}-{month:02d}-01"
+        if month == 12:
+            end_date = f"{year + 1}-01-01"
+        else:
+            end_date = f"{year}-{month + 1:02d}-01"
+        query["event_date"] = {"$gte": start_date, "$lt": end_date}
+    
+    events = await db.events.find(query, {"_id": 0}).sort("event_date", 1).to_list(500)
+    return events
+
+@api_router.post("/events")
+async def create_event(event: EventCreate, user: dict = Depends(require_editor)):
+    event_doc = {
+        "id": str(uuid.uuid4()),
+        "title": event.title,
+        "description": event.description or "",
+        "event_date": event.event_date,
+        "event_time": event.event_time,
+        "event_type": event.event_type,
+        "location": event.location or "",
+        "is_recurring": event.is_recurring,
+        "recurrence_pattern": event.recurrence_pattern,
+        "created_by": user["id"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.events.insert_one(event_doc)
+    del event_doc["_id"]
+    return event_doc
+
+@api_router.put("/events/{event_id}")
+async def update_event(event_id: str, event: EventUpdate, user: dict = Depends(require_editor)):
+    update_dict = {k: v for k, v in event.model_dump().items() if v is not None}
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No data to update")
+    
+    result = await db.events.update_one({"id": event_id}, {"$set": update_dict})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    return {"message": "Event updated"}
+
+@api_router.delete("/events/{event_id}")
+async def delete_event(event_id: str, user: dict = Depends(require_editor)):
+    result = await db.events.delete_one({"id": event_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return {"message": "Event deleted"}
+
+# ============== BIRTHDAYS ==============
+
+@api_router.get("/birthdays")
+async def get_birthdays(
+    month: int = Query(None, ge=1, le=12),
+    user: dict = Depends(get_current_user)
+):
+    # Get all active members with birthdays
+    members = await db.members.find(
+        {"is_active": True, "birth_date": {"$ne": None, "$ne": ""}},
+        {"_id": 0, "original_id": 1, "pib": 1, "birth_date": 1, "phone_mobile": 1, "gender": 1, "photo_url": 1}
+    ).to_list(2000)
+    
+    birthdays = []
+    for m in members:
+        bd = m.get("birth_date")
+        if bd:
+            try:
+                # Parse birth date
+                bd_date = datetime.fromisoformat(bd.replace("Z", "+00:00"))
+                
+                # Filter by month if specified
+                if month and bd_date.month != month:
+                    continue
+                
+                # Calculate age
+                today = datetime.now()
+                age = today.year - bd_date.year
+                if (today.month, today.day) < (bd_date.month, bd_date.day):
+                    age -= 1
+                
+                birthdays.append({
+                    "member_id": m["original_id"],
+                    "pib": m["pib"],
+                    "birth_date": bd,
+                    "day": bd_date.day,
+                    "month": bd_date.month,
+                    "age": age,
+                    "phone_mobile": m.get("phone_mobile", ""),
+                    "gender": m.get("gender", ""),
+                    "photo_url": m.get("photo_url")
+                })
+            except:
+                continue
+    
+    # Sort by day of month
+    birthdays.sort(key=lambda x: x["day"])
+    
+    return birthdays
+
+@api_router.get("/birthdays/upcoming")
+async def get_upcoming_birthdays(days: int = Query(7, ge=1, le=30), user: dict = Depends(get_current_user)):
+    # Get all active members with birthdays
+    members = await db.members.find(
+        {"is_active": True, "birth_date": {"$ne": None, "$ne": ""}},
+        {"_id": 0, "original_id": 1, "pib": 1, "birth_date": 1, "phone_mobile": 1, "gender": 1, "photo_url": 1}
+    ).to_list(2000)
+    
+    today = datetime.now()
+    upcoming = []
+    
+    for m in members:
+        bd = m.get("birth_date")
+        if bd:
+            try:
+                bd_date = datetime.fromisoformat(bd.replace("Z", "+00:00"))
+                
+                # Check this year's birthday
+                this_year_bd = bd_date.replace(year=today.year)
+                if this_year_bd < today:
+                    this_year_bd = bd_date.replace(year=today.year + 1)
+                
+                days_until = (this_year_bd - today).days
+                
+                if 0 <= days_until <= days:
+                    age = this_year_bd.year - bd_date.year
+                    upcoming.append({
+                        "member_id": m["original_id"],
+                        "pib": m["pib"],
+                        "birth_date": bd,
+                        "birthday_date": this_year_bd.strftime("%Y-%m-%d"),
+                        "days_until": days_until,
+                        "age": age,
+                        "phone_mobile": m.get("phone_mobile", ""),
+                        "gender": m.get("gender", ""),
+                        "photo_url": m.get("photo_url")
+                    })
+            except:
+                continue
+    
+    upcoming.sort(key=lambda x: x["days_until"])
+    return upcoming
+
+# ============== CALENDAR DATA ==============
+
+@api_router.get("/calendar/{year}/{month}")
+async def get_calendar_data(year: int, month: int, user: dict = Depends(get_current_user)):
+    # Get events for the month
+    start_date = f"{year}-{month:02d}-01"
+    if month == 12:
+        end_date = f"{year + 1}-01-01"
+    else:
+        end_date = f"{year}-{month + 1:02d}-01"
+    
+    events = await db.events.find(
+        {"event_date": {"$gte": start_date, "$lt": end_date}},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Get birthdays for the month
+    members = await db.members.find(
+        {"is_active": True, "birth_date": {"$ne": None, "$ne": ""}},
+        {"_id": 0, "original_id": 1, "pib": 1, "birth_date": 1, "photo_url": 1}
+    ).to_list(2000)
+    
+    birthdays = []
+    for m in members:
+        bd = m.get("birth_date")
+        if bd:
+            try:
+                bd_date = datetime.fromisoformat(bd.replace("Z", "+00:00"))
+                if bd_date.month == month:
+                    age = year - bd_date.year
+                    birthdays.append({
+                        "member_id": m["original_id"],
+                        "pib": m["pib"],
+                        "day": bd_date.day,
+                        "age": age,
+                        "photo_url": m.get("photo_url")
+                    })
+            except:
+                continue
+    
+    # Group by day
+    calendar_data = {}
+    
+    for e in events:
+        day = int(e["event_date"].split("-")[2])
+        if day not in calendar_data:
+            calendar_data[day] = {"events": [], "birthdays": []}
+        calendar_data[day]["events"].append(e)
+    
+    for b in birthdays:
+        day = b["day"]
+        if day not in calendar_data:
+            calendar_data[day] = {"events": [], "birthdays": []}
+        calendar_data[day]["birthdays"].append(b)
+    
+    return {
+        "year": year,
+        "month": month,
+        "data": calendar_data
+    }
+
 # Include router
 app.include_router(api_router)
 
