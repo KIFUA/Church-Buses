@@ -139,6 +139,26 @@ class StatisticsResponse(BaseModel):
     marital_stats: Dict[str, int]
     social_stats: Dict[str, int]
 
+class EventCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    event_date: str  # ISO format date
+    event_time: Optional[str] = None
+    event_type: str = "general"  # general, service, meeting, youth, etc.
+    location: Optional[str] = None
+    is_recurring: bool = False
+    recurrence_pattern: Optional[str] = None  # weekly, monthly, yearly
+
+class EventUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    event_date: Optional[str] = None
+    event_time: Optional[str] = None
+    event_type: Optional[str] = None
+    location: Optional[str] = None
+    is_recurring: Optional[bool] = None
+    recurrence_pattern: Optional[str] = None
+
 # ============== AUTH HELPERS ==============
 
 def verify_password(plain_password, hashed_password):
