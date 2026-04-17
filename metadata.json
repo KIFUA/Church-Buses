@@ -1,0 +1,7 @@
+{
+  "name": "Church Bus Booking",
+  "description": "A React application for viewing church bus availability and requesting bookings. Replaces the legacy HTML version with a modern, responsive mobile-first design.",
+  "requestFramePermissions": [],
+  "C7": [],
+  "aq": []
+}

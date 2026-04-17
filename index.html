@@ -55,6 +55,7 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
@@ -155,7 +156,6 @@
 
             return (
                 <div className="relative w-full" ref={containerRef}>
-                    <label className="text-[11px] font-semibold text-gray-600 uppercase mb-1 block">{label}</label>
                     <div 
                         onClick={() => setIsOpen(!isOpen)}
                         className="w-full bg-white border-2 border-gray-500 p-2 rounded cursor-pointer flex justify-between items-center transition-all hover:border-blue-400"
@@ -286,7 +286,7 @@
             const handleBlur = (f) => form[f] === '' && setForm({...form, [f]: 'Не замовляємо'});
             
             const inputBaseClass = "w-full bg-white border-2 border-gray-500 p-2 rounded focus:outline-none focus:border-blue-600 transition-colors";
-            const labelClass = "text-[11px] font-semibold text-gray-600 uppercase mb-1 block";
+            const labelClass = "text-[11px] font-semibold text-gray-600 uppercase mb-0.5 block";
 
             const handlePurposeChange = (e) => {
                 const target = e.target;
@@ -319,32 +319,24 @@
 
             const submit = async () => {
                 if (!form.responsible || !form.start || !form.end || !form.purpose) return alert('Заповніть всі поля (включаючи мету поїздки)!');
-                setStatus('SENDING');
-                try {
-                    const res = await fetch(APPS_SCRIPT_URL, {
-                        method: 'POST', body: JSON.stringify({
-                            bus: BUSES.find(b=>b.code===busCode)?.name, 
-                            responsiblePerson: form.responsible,
-                            departureDate: formatDateForDisplay(form.start), 
-                            returnDate: formatDateForDisplay(form.end), 
-                            purpose: form.purpose,
-                            sprinter: form.s, 
-                            crafter: form.k, 
-                            delphin: form.d, 
-                            userEmail: "app@user"
-                        })
-                    }).then(r => r.json());
-                    
-                    if (res.status === 'success') { 
-                        setRequestId(res.requestId);
-                        setStatus('WAITING_FOR_ADMIN'); 
-                    } else { 
-                        alert('Помилка сервера'); 
-                        setStatus('IDLE'); 
+                
+                const busName = BUSES.find(b=>b.code===busCode)?.name;
+                
+                // Поширення даних
+                const shareData = {
+                    title: 'Замовлення буса',
+                    text: `Замовлення буса: ${busName}\nВідповідальний: ${form.responsible}\nВиїзд: ${formatDateForDisplay(form.start)}\nПовернення: ${formatDateForDisplay(form.end)}\nМета: ${form.purpose}`,
+                    url: window.location.href
+                };
+                
+                if (navigator.share) {
+                    try {
+                        await navigator.share(shareData);
+                    } catch (err) {
+                        console.log('Помилка поширення:', err);
                     }
-                } catch { 
-                    alert('Помилка мережі'); 
-                    setStatus('IDLE'); 
+                } else {
+                    alert('Ваш браузер не підтримує функцію поширення.');
                 }
             };
 
@@ -385,13 +377,22 @@
             return (
                 <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto space-y-5 animate-fade-in">
                     <header className="border-b pb-4 mb-2"><h2 className="text-2xl font-bold text-center text-gray-800">БРОНЮВАННЯ</h2></header>
-                    <input className={`${inputBaseClass} text-center font-bold text-gray-900`} placeholder="Впишіть відповідального за поїздку" value={form.responsible} onChange={e=>setForm({...form, responsible: e.target.value})} />
+                    <div className="flex flex-col gap-1">
+                        <label className={labelClass}>ВІДПОВІДАЛЬНИЙ ЗА ПОІЇЗДКУ</label>
+                        <input className={`${inputBaseClass} text-center font-bold text-gray-900`} placeholder="Впишіть відповідального за поїздку" value={form.responsible} onChange={e=>setForm({...form, responsible: e.target.value})} />
+                    </div>
                     <div className="flex gap-4">
-                        <CustomDatePicker label="Виїзд" value={form.start} onChange={v => setForm({...form, start: v})} />
-                        <CustomDatePicker label="Повернення" value={form.end} onChange={v => setForm({...form, end: v})} />
+                        <div className="flex flex-col gap-1 w-full">
+                            <label className={labelClass}>Виїзд</label>
+                            <CustomDatePicker value={form.start} onChange={v => setForm({...form, start: v})} />
+                        </div>
+                        <div className="flex flex-col gap-1 w-full">
+                            <label className={labelClass}>Повернення</label>
+                            <CustomDatePicker value={form.end} onChange={v => setForm({...form, end: v})} />
+                        </div>
                     </div>
                     
-                    <div className="w-full">
+                    <div className="flex flex-col gap-1 w-full">
                         <label className={labelClass}>Мета поїздки</label>
                         <textarea 
                             className={`${inputBaseClass} min-h-[50px] resize-none overflow-hidden font-medium text-gray-900`} 
@@ -490,5 +491,6 @@
         };
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
